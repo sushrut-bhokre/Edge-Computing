@@ -77,6 +77,8 @@ The following diagram illustrates the high-level architecture of a ZEUS node:
     *   **Monitoring**: Ensure `performa-satellite` is running (managed via cron/systemd).
     *   **Terminal**: Access Wetty at `http://<YOUR-NODE-IP>:3000/wetty` (default port).
     *   **VM Manager**: Access VMs from your broswer at `https://<YOUR-NODE-IP>:8001`
+      **Note**: Your pc will restart after the installation.
+
 ## Documentation
 For more detailed documentation, please visit our [Wiki](https://github.com/your-repo/zeus/wiki) or check the `/docs` folder involved in this repository.
 *   [Wok Documentation](https://github.com/kimchi-project/wok)
