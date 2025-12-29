@@ -252,9 +252,7 @@ success "Kimchi plugin enabled"
 # 13. Apply custom UI and start wokd
 ############################################
 section "Custom UI & Service Start"
-cd $WOK_CUSTOM_UI
-git clone https://github.com/PalashTinkhede/ui
-git clone https://github.com/PalashTinkhede/plugins
+
 rm -rf /usr/share/wok
 mv "${WOK_CUSTOM_UI}" /usr/share/
 
