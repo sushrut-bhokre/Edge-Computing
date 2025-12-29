@@ -61,7 +61,7 @@ The following diagram illustrates the high-level architecture of a ZEUS node:
 1.  **Clone the Repository**
     ```bash
     git clone https://github.com/sushrut-bhokre/Edge-Computing
-    cd Edge-Computing-main
+    cd Edge-Computing
     ```
 2.  **Run the Installer**
     The main installer orchestrates the setup of Wok, performa, wetty, and Cluster components.
