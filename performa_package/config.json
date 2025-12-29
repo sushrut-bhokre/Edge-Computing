@@ -1,0 +1,6 @@
+{
+	"enabled": true,
+	"host": "10.51.241.195:5511",
+	"secret_key": "e1788eb12ee39a27b5312513ae971cb2",
+	"group": "main"
+}
