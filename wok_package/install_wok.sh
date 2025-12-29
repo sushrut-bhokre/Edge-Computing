@@ -9,7 +9,7 @@ set -e
 # Configuration
 # -----------------------------
 USER_NAME="$(logname 2>/dev/null || echo root)"
-EDGE_BASE="/home/${USER_NAME}/Downloads/Edge-Computing-main"
+EDGE_BASE="$(pwd)"
 WOK_CUSTOM_UI="${EDGE_BASE}/wok_package/wok"
 
 LOG_DIR="/var/log/kimchi-wok"
