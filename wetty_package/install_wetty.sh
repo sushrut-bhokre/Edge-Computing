@@ -136,7 +136,7 @@ cd "${INSTALL_DIR}/wetty_package"
 if [ ! -d wetty ]; then
   git clone "${WETTY_REPO}"
 fi
-git clone https://github.com/PalashTinkhede/wetty
+
 cd wetty
 npm install
 npm run build
