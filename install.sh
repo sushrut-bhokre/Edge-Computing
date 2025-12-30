@@ -62,6 +62,69 @@ fi
 # -----------------------------
 section "EDGE SOLUTION INITIALIZATION"
 
+
+# -----------------------------
+# Git dependency check
+# -----------------------------
+section "Dependency Check: Git"
+
+if command -v git >/dev/null 2>&1; then
+  success "Git is already installed ($(git --version))"
+else
+  log "Git not found. Installing Git..."
+
+  if command -v apt >/dev/null 2>&1; then
+    run_step "Updating package index" "apt update -y"
+    run_step "Installing Git" "apt install -y git"
+  else
+    error "Unsupported package manager. Install Git manually."
+    exit 1
+  fi
+
+  success "Git installed successfully ($(git --version))"
+fi
+
+# -----------------------------
+# pip3 dependency check (>=23)
+# -----------------------------
+section "Dependency Check: pip3"
+
+if ! command -v pip3 >/dev/null 2>&1; then
+  sudo apt install python3-pip -y
+  
+fi
+
+PIP_VERSION_RAW=$(pip3 --version | awk '{print $2}')
+PIP_MAJOR_VERSION=$(echo "$PIP_VERSION_RAW" | cut -d. -f1)
+
+log "Detected pip3 version: $PIP_VERSION_RAW"
+
+if [ "$PIP_MAJOR_VERSION" -lt 23 ]; then
+  log "pip3 version is below 23. Upgrading pip3..."
+
+  if command -v apt >/dev/null 2>&1; then
+    run_step "Upgrading pip3 using python3 -m pip" \
+      "python3 -m pip install --upgrade pip"
+hash -r
+  else
+    error "Unsupported package manager. Upgrade pip3 manually."
+    exit 1
+  fi
+
+  NEW_PIP_VERSION=$(pip3 --version | awk '{print $2}')
+  NEW_PIP_MAJOR=$(echo "$NEW_PIP_VERSION" | cut -d. -f1)
+
+  if [ "$NEW_PIP_MAJOR" -lt 23 ]; then
+    error "pip3 upgrade failed. Required pip >= 23, found $NEW_PIP_VERSION"
+    exit 1
+  fi
+
+  success "pip3 upgraded successfully to version $NEW_PIP_VERSION"
+else
+  success "pip3 meets minimum version requirement (>=23)"
+fi
+
+
 section "Monitoring Solution"
 run_step "Setting executable permission" \
   "chmod +x performa_package/install_performa.sh"
