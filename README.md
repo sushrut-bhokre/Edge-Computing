@@ -72,7 +72,7 @@ The following diagram illustrates the high-level architecture of a ZEUS node:
 3.  **Access the Dashboard**
     *   **URL**: `https://10.51.241.195:3001`
     *   **Login**: Use your email to login.
-4.  **Additional Setup**
+4.  **Configuration check**
     *   **CLuster**: Ensure `pcsd service` is running (`sudo systemctl status pcsd`)
     *   **Monitoring**: Ensure `performa-satellite` is running (managed via cron/systemd).
     *   **Terminal**: Access Wetty at `http://<YOUR-NODE-IP>:3000/wetty` (default port).
