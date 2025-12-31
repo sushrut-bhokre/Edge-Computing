@@ -81,7 +81,7 @@ The following diagram illustrates the high-level architecture of a ZEUS node:
      **Note**: Your pc will restart after the installation.
 
 ## Documentation
-For more detailed documentation, please visit our [Wiki](https://github.com/your-repo/zeus/wiki) or check the `/docs` folder involved in this repository.
+For more detailed documentation, please visit our [docs](http://10.51.241.195:3002).
 *   [Wok Documentation](https://github.com/kimchi-project/wok)
 *   [Kimchi Documentation](https://github.com/kimchi-project/kimchi)
 *   [ClusterLabs Info](https://clusterlabs.org/)
