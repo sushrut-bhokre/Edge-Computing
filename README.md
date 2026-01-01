@@ -52,7 +52,7 @@ Whether you are managing a single edge server or a distributed cluster, ZEUS pro
   - `5405` – Corosync (UDP)
   - `2224` – PCS
 
- ## Architecture[↗](http://10.51.241.195:3002/#architecture)
+ ## [Architecture↗](http://10.51.241.195:3002/#architecture)
 The following diagram illustrates the high-level architecture of a ZEUS node:
 <img width="1919" height="1042" alt="image" src="https://github.com/user-attachments/assets/a120d2bb-3728-4003-9082-1369c4eadfa3" />
 
