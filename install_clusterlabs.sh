@@ -2,9 +2,9 @@
 set -e
 
 #################################################
-# Pacemaker Node Preparation Script
+# Pacemaker Node & Web UI Preparation Script
 # Ubuntu 24.04 LTS
-# Purpose: Make node ADDABLE to any cluster later
+# Purpose: Prepare node and install modern Web UI
 #################################################
 
 # -----------------------------
@@ -12,6 +12,7 @@ set -e
 # -----------------------------
 LOG_DIR="/var/log/pacemaker-node"
 LOG_FILE="${LOG_DIR}/prepare-$(date +%Y%m%d-%H%M%S).log"
+BUILD_DIR="/tmp/pcs-web-ui-build"
 
 # -----------------------------
 # Formatting helpers
@@ -52,82 +53,99 @@ touch "${LOG_FILE}"
 chmod 600 "${LOG_FILE}"
 
 exec > >(tee -a "${LOG_FILE}") 2>&1
-trap 'fail "Pacemaker node preparation failed"' ERR
+trap 'fail "Script execution interrupted or failed unexpectedly"' ERR
 
 # -----------------------------
 # Start
 # -----------------------------
-echo "==== Pacemaker Node Preparation Started ===="
-echo "Hostname : $(hostname)"
-echo "Log file : ${LOG_FILE}"
+section "Initialization"
+success "Pacemaker Node + Web UI Preparation Started"
+success "Hostname : $(hostname)"
 
 #############################################
 # 1. System update
 #############################################
 section "System Update"
-
-apt update -y
-apt upgrade -y
+apt update -y && apt upgrade -y || fail "Failed to update system packages"
 success "System packages updated"
 
 #############################################
 # 2. Time synchronization
 #############################################
 section "Time Synchronization (chrony)"
-
-apt install -y chrony
-systemctl enable --now chrony
+apt install -y chrony || fail "Failed to install chrony"
+systemctl enable --now chrony || fail "Failed to start chrony"
 success "Chrony installed and running"
 
 #############################################
 # 3. Pacemaker stack
 #############################################
 section "Pacemaker Stack Installation"
-
-apt install -y pacemaker corosync pcs fence-agents
+apt install -y pacemaker corosync pcs fence-agents || fail "Failed to install Pacemaker stack"
 success "Pacemaker, Corosync, and PCS installed"
 
 #############################################
 # 4. pcsd service
 #############################################
 section "pcsd Service Enablement"
-
-systemctl enable --now pcsd
+systemctl enable --now pcsd || fail "Failed to enable/start pcsd"
 success "pcsd service enabled and running"
 
 #############################################
 # 5. Disable cluster services
 #############################################
 section "Cluster Services State"
-
-systemctl disable --now pacemaker corosync || true
-success "pacemaker and corosync stopped (correct state)"
+systemctl disable --now pacemaker corosync || success "Services already stopped"
+success "pacemaker and corosync set to stopped (correct initial state)"
 
 #############################################
-# 6. hacluster authentication
+# 6. Build & Install Web UI
+#############################################
+section "Web UI Build Dependencies"
+apt install -y git autoconf automake make pkg-config npm nodejs || fail "Failed to install build dependencies"
+success "Dependencies installed"
+
+section "Cloning and Building PCS Web UI"
+rm -rf "$BUILD_DIR"
+git clone https://github.com/ClusterLabs/pcs-web-ui.git "$BUILD_DIR" || fail "Failed to clone repository"
+cd "$BUILD_DIR"
+
+./autogen.sh || fail "autogen.sh failed"
+./configure --disable-cockpit --with-pcsd-webui-dir=/usr/share/pcsd/public/ui || fail "Configuration failed"
+make || fail "Build (make) failed"
+make install || fail "Installation (make install) failed"
+success "Web UI built and installed to /usr/share/pcsd/public/ui"
+
+#############################################
+# 7. hacluster authentication
 #############################################
 section "hacluster Authentication"
-
-echo "You will now be prompted to set the password for 'hacluster'."
-echo "This password is required when adding this node to a cluster."
-passwd hacluster
-
+echo -e "${BOLD}Action Required:${RESET} Set the password for 'hacluster' (UI login)"
+read -rs -p "Enter password: " HA_PASS
+echo
+echo "hacluster:$HA_PASS" | chpasswd || fail "Failed to set password for hacluster"
 success "hacluster password configured"
 
-#############################################
-# Final status
-#############################################
-echo
-echo "==== NODE PREPARATION COMPLETE ===="
-echo
-echo "Service state:"
-echo "  pcsd        : RUNNING (required)"
-echo "  pacemaker   : STOPPED (correct)"
-echo "  corosync    : STOPPED (correct)"
-echo
-echo "This node can now be added from any existing cluster using:"
-echo "  pcs host auth $(hostname)"
-echo "  pcs cluster node add $(hostname)"
-echo
-echo "Log file: ${LOG_FILE}"
+systemctl restart pcsd || fail "Failed to restart pcsd after UI installation"
+success "pcsd restarted successfully"
 
+#############################################
+# Cleanup & Final status
+#############################################
+section "Cleanup"
+rm -rf "$BUILD_DIR"
+success "Temporary build files removed"
+
+IP_ADDR=$(hostname -I | awk '{print $1}')
+
+echo -e "\n${BOLD}${GREEN}==== PREPARATION COMPLETE ====${RESET}"
+echo "Node Status:"
+echo "  pcsd (API/UI) : RUNNING"
+echo "  pacemaker     : STOPPED"
+echo "  corosync      : STOPPED"
+echo
+echo "Access Information:"
+echo "  URL           : https://${IP_ADDR}:2224"
+echo "  Username      : hacluster"
+echo
+success "Node is ready to be added to a cluster"
