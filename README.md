@@ -54,7 +54,7 @@ Whether you are managing a single edge server or a distributed cluster, ZEUS pro
 
  ## [Architecture↗](http://10.51.241.195:3002/#architecture)
 The following diagram illustrates the high-level architecture of a ZEUS node:
-<img width="1919" height="1042" alt="image" src="https://github.com/user-attachments/assets/a120d2bb-3728-4003-9082-1369c4eadfa3" />
+<img width="1246" height="670" alt="Screenshot 2026-01-09 002203" src="https://github.com/user-attachments/assets/d9e18098-e1e9-4dad-84b0-d5732793f1ec" />
 
 ## Advantages
 *   **Unified Platform**: No need to stitch together disparate tools; ZEUS brings them all together.
