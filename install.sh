@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set +e
 
 # -----------------------------
 # Color & formatting helpers
@@ -26,6 +26,11 @@ success() {
 
 error() {
   echo -e "${RED}✖ $1${RESET}"
+}
+fail() {
+  echo -e "${RED}✖ $1${RESET}"
+  echo -e "${RED}See log file: ${LOG_FILE}${RESET}"
+  exit 1
 }
 
 section() {
@@ -66,6 +71,74 @@ section "EDGE SOLUTION INITIALIZATION"
 # -----------------------------
 # Git dependency check
 # -----------------------------
+
+section "network connectivity"
+
+
+
+
+# Check if default gateway exist
+ip route | grep -q default
+
+if [ $? -ne 0 ]; then
+    fail "FAIL: No default route. Network is down."
+    exit 1
+fi
+
+# Check TCP connectivity (DNS port)
+timeout 5 bash -c "</dev/tcp/8.8.8.8/53" >/dev/null 2>&1
+
+if [ $? -eq 0 ]; then
+    success "PASS: Internet connectivity is available."
+    
+else
+    fail  "FAIL: No internet connectivity."
+    exit 1
+fi
+
+
+section "Dependency Check: RAM"
+
+
+
+# Required RAM in KB (3 GB = 3 * 1024 * 1024)
+REQUIRED_RAM_KB=$((2 * 1024 * 1024))
+
+# Read available memory from /proc/meminfo
+AVAILABLE_RAM_KB=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+
+if [ "$AVAILABLE_RAM_KB" -ge "$REQUIRED_RAM_KB" ]; then
+   success "PASS: Available RAM is sufficient ($(($AVAILABLE_RAM_KB / 1024)) MB)."
+   
+else
+   fail "FAIL: Available RAM is insufficient ($(($AVAILABLE_RAM_KB / 1024)) MB). At least 2 GB required."
+   exit 1
+fi
+section "Disk Space check"
+REQUIRED_SPACE_KB=$((10 * 1024 * 1024))
+
+# Get available space on root filesystem in KB
+AVAILABLE_SPACE_KB=$(df --output=avail / | tail -n 1)
+
+if [ "$AVAILABLE_SPACE_KB" -ge "$REQUIRED_SPACE_KB" ]; then
+    success  "PASS: Available disk space is sufficient ($(($AVAILABLE_SPACE_KB / 1024 / 1024)) GB)."
+    
+else
+    fail "FAIL: Available disk space is insufficient ($(($AVAILABLE_SPACE_KB / 1024 / 1024)) GB). At least 30 GB required."
+
+fi
+section "CPU Virtualization Check"
+
+if ! lscpu | grep -Eiq 'vmx|svm'; then
+  fail "CPU does not support hardware virtualization"
+  
+
+else
+   success "CPU support virtualization"
+   
+fi
+
+
 section "Dependency Check: Git"
 
 if command -v git >/dev/null 2>&1; then
@@ -153,3 +226,5 @@ section "INSTALLATION COMPLETE"
 success "All components installed successfully"
 
 sudo reboot
+
+
