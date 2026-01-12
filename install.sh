@@ -228,6 +228,13 @@ run_step "Setting executable permission" \
 run_step "Installing ClusterLabs" \
   "./install_webUI.sh"
 
+
+ section "Adding node to the system"
+run_step "Setting executable permission" \
+  "chmod +x node_detect.sh"
+run_step "setting it in environment" \
+  "./node_detect.sh"
+  
 section "INSTALLATION COMPLETE"
 success "All components installed successfully"
 
