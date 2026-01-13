@@ -225,7 +225,7 @@ run_step "Installing ClusterLabs" \
   section "Web dashboard Intergation"
 run_step "Setting executable permission" \
   "chmod +x install_webUI.sh"
-run_step "Installing ClusterLabs" \
+run_step "Installing web ui " \
   "./install_webUI.sh"
 
 
