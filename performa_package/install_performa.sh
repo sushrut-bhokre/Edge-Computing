@@ -5,6 +5,7 @@ set -e
 # Configuration
 # -----------------------------
 INSTALL_DIR="/opt/performa"
+ORG_DIR=$(pwd)
 BIN_PATH="${INSTALL_DIR}/satellite.bin"
 LOCAL_CONFIG="performa_package/config.json"
 NODE_MAJOR="22"
@@ -83,32 +84,30 @@ fi
 echo "Node: $(node -v)"
 echo "NPM : $(npm -v)"
 
-########################################
-# 2. Install Performa 
-########################################
-section "Performa  Setup"
 
-cd /opt
-git clone https://github.com/Palash-Tinkhede/performa.git
-cd performa	
+########################################
+# 3. Installing performa satellite
+########################################
+mkdir -p "${INSTALL_DIR}"
+cd /opt/performa
+git clone https://github.com/Palash-Tinkhede/performa.git .
+	
 npm install
 node bin/build.js dist
 /opt/performa/bin/control.sh setup
 /opt/performa/bin/control.sh start
-########################################
-# 3. Installing performa satellite
-########################################
 
 
-url -L "${DOWNLOAD_URL}" -o "${BIN_PATH}"
-chmod 755 "${BIN_PATH}"
+cd $ORG_DIR
+curl -L "${DOWNLOAD_URL}" -o "${BIN_PATH}"
 success "Satellite binary installed"
+chmod 755 "${BIN_PATH}"
 
 ########################################
 # 3. Apply custom config.json
 ########################################
 section "Configuration"
-
+pwd 
 if [ ! -f "${LOCAL_CONFIG}" ]; then
   fail "Missing config file: ${LOCAL_CONFIG}"
 fi
@@ -124,6 +123,11 @@ section "Service Installation"
 
 "${BIN_PATH}" --install
 success "Performa Satellite service installed"
+########################################
+# 2. Install Performa 
+########################################
+section "Performa  Setup"
+
 
 ########################################
 # Done
