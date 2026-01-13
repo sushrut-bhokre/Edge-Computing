@@ -84,7 +84,7 @@ echo "Node: $(node -v)"
 echo "NPM : $(npm -v)"
 
 ########################################
-# 2. Install Performa Satellite
+# 2. Install Performa 
 ########################################
 section "Performa  Setup"
 
@@ -95,11 +95,46 @@ npm install
 node bin/build.js dist
 /opt/performa/bin/control.sh setup
 /opt/performa/bin/control.sh start
+########################################
+# 3. Installing performa satellite
+########################################
 
+
+url -L "${DOWNLOAD_URL}" -o "${BIN_PATH}"
+chmod 755 "${BIN_PATH}"
+success "Satellite binary installed"
+
+########################################
+# 3. Apply custom config.json
+########################################
+section "Configuration"
+
+if [ ! -f "${LOCAL_CONFIG}" ]; then
+  fail "Missing config file: ${LOCAL_CONFIG}"
+fi
+
+cp "${LOCAL_CONFIG}" "${INSTALL_DIR}/config.json"
+chmod 600 "${INSTALL_DIR}/config.json"
+success "Custom configuration applied"
+
+########################################
+# 4. Install service (cron/system setup)
+########################################
+section "Service Installation"
+
+"${BIN_PATH}" --install
+success "Performa Satellite service installed"
+
+########################################
+# Done
+########################################
+echo
+echo "==== Installation completed successfully ===="
+echo "Log file saved at: ${LOG_FILE}"
 
 
 echo "------------------------------------------------"
-echo "Installation Complete!"
+echo "Installation Complete! of performa and satellite"
 echo "Master UI: http://$(hostname -I | awk '{print $1}'):5511"
 echo "------------------------------------------------"
 
