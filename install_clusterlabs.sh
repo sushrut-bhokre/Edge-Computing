@@ -102,7 +102,7 @@ success "pacemaker and corosync set to stopped (correct initial state)"
 # 6. Build & Install Web UI
 #############################################
 section "Web UI Build Dependencies"
-apt install -y git autoconf automake make pkg-config npm nodejs || fail "Failed to install build dependencies"
+apt install -y git autoconf automake make pkg-config || fail "Failed to install build dependencies"
 success "Dependencies installed"
 
 section "Cloning and Building PCS Web UI"
