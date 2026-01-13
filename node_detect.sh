@@ -7,6 +7,7 @@ set -e
 MONGO_URI="mongodb+srv://palashtinkhede8124_db_user:Pass%40mong%40123@edgeauth.nabl7hf.mongodb.net/"
 PYTHON_SCRIPT="/usr/local/bin/node_inventory_to_mongo.py"
 SERVICE_FILE="/etc/systemd/system/node-inventory.service"
+IP_ADDRESS="$(hostname -I | awk '{print $1}')"
 
 echo "Starting node inventory installation..."
 
@@ -36,7 +37,7 @@ db = client["test"]
 collection = db["nodes"]
 
 hostname = socket.gethostname()
-ip_address = socket.gethostbyname(hostname)
+ip_address = "$IP_ADDRESS"
 cpu_cores = psutil.cpu_count(logical=True)
 memory_gb = round(psutil.virtual_memory().total / (1024 ** 3), 2)
 
@@ -90,7 +91,6 @@ echo "Starting node-inventory service..."
 systemctl start node-inventory.service
 
 echo "Checking service status..."
-systemctl status node-inventory.service --no-pager
 
 echo "Node inventory successfully written (insert or update) to MongoDB."
 
