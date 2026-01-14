@@ -1,22 +1,29 @@
 #!/bin/bash
 set -e
 
-# -----------------------------
+################################################################################
+#                             Performa Installer                               #
+#                Installs Node.js, Performa, and systemd service                #
+################################################################################
+
+# ------------------------------------------------------------------------------
 # Configuration
-# -----------------------------
+# ------------------------------------------------------------------------------
 INSTALL_DIR="/opt/performa"
-ORG_DIR=$(pwd)
+ORG_DIR="$(pwd)"
+
 BIN_PATH="${INSTALL_DIR}/satellite.bin"
 LOCAL_CONFIG="performa_package/config.json"
+
 NODE_MAJOR="22"
 DOWNLOAD_URL="https://github.com/jhuckaby/performa-satellite/releases/latest/download/performa-satellite-linux-x64"
 
 LOG_DIR="/var/log/performa"
 LOG_FILE="${LOG_DIR}/install-$(date +%Y%m%d-%H%M%S).log"
 
-# -----------------------------
+# ------------------------------------------------------------------------------
 # Formatting helpers
-# -----------------------------
+# ------------------------------------------------------------------------------
 BOLD="\e[1m"
 GREEN="\e[32m"
 RED="\e[31m"
@@ -24,7 +31,7 @@ BLUE="\e[34m"
 RESET="\e[0m"
 
 section() {
-  echo -e "\n${BOLD}${BLUE}=== $1 ===${RESET}"
+  echo -e "\n${BOLD}${BLUE}==================== $1 ====================${RESET}"
 }
 
 success() {
@@ -37,38 +44,38 @@ fail() {
   exit 1
 }
 
-# -----------------------------
+# ------------------------------------------------------------------------------
 # Root check
-# -----------------------------
+# ------------------------------------------------------------------------------
 if [ "$EUID" -ne 0 ]; then
-  echo "ERROR: Please run this script as root (sudo)."
+  fail "ERROR: Please run this script as root (sudo)."
   exit 1
 fi
 
-# -----------------------------
-# Prepare logging
-# -----------------------------
+# ------------------------------------------------------------------------------
+# Logging setup
+# ------------------------------------------------------------------------------
 mkdir -p "${LOG_DIR}"
 touch "${LOG_FILE}"
 chmod 600 "${LOG_FILE}"
 
-# Redirect ALL output to log file
+# Redirect all output to log file
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
-# -----------------------------
-# Trap errors
-# -----------------------------
+# ------------------------------------------------------------------------------
+# Error handling
+# ------------------------------------------------------------------------------
 trap 'fail "Installation failed"' ERR
 
-# -----------------------------
+# ------------------------------------------------------------------------------
 # Start installation
-# -----------------------------
-echo "==== Performa Satellite Installation Started ===="
+# ------------------------------------------------------------------------------
+success "==== Performa Satellite Installation Started ===="
 echo "Log file: ${LOG_FILE}"
 
-########################################
-# 1. Install Node.js v22
-########################################
+################################################################################
+# 1. Node.js Installation
+################################################################################
 section "Node.js Installation"
 
 if ! command -v node >/dev/null 2>&1 || ! node -v | grep -q "v${NODE_MAJOR}"; then
@@ -81,64 +88,86 @@ else
   success "Node.js v${NODE_MAJOR} already present"
 fi
 
-echo "Node: $(node -v)"
-echo "NPM : $(npm -v)"
+echo "Node Version : $(node -v)"
+echo "NPM Version  : $(npm -v)"
 
+################################################################################
+# 2. Performa Setup
+################################################################################
+section "Performa Setup"
 
-########################################
-# 3. Installing performa satellite
-########################################
 mkdir -p "${INSTALL_DIR}"
 cd /opt/performa
+
 git clone https://github.com/Palash-Tinkhede/performa.git .
-	
+success "cloning complete"
+success "installing dependencies"
 npm install
 node bin/build.js dist
 /opt/performa/bin/control.sh setup
-/opt/performa/bin/control.sh start
 
-
-cd $ORG_DIR
-curl -L "${DOWNLOAD_URL}" -o "${BIN_PATH}"
-success "Satellite binary installed"
-chmod 755 "${BIN_PATH}"
-
-########################################
-# 3. Apply custom config.json
-########################################
-section "Configuration"
-pwd 
-if [ ! -f "${LOCAL_CONFIG}" ]; then
-  fail "Missing config file: ${LOCAL_CONFIG}"
-fi
-
-cp "${LOCAL_CONFIG}" "${INSTALL_DIR}/config.json"
-chmod 600 "${INSTALL_DIR}/config.json"
-success "Custom configuration applied"
-
-########################################
-# 4. Install service (cron/system setup)
-########################################
+################################################################################
+# 3. Service Installation (systemd)
+################################################################################
 section "Service Installation"
 
-"${BIN_PATH}" --install
-success "Performa Satellite service installed"
-########################################
-# 2. Install Performa 
-########################################
-section "Performa  Setup"
+SERVICE_NAME="performa"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+PERFORMA_DIR="/opt/performa"
+CONTROL_SCRIPT="${PERFORMA_DIR}/bin/control.sh"
 
+success "Configuring systemd service..."
 
-########################################
-# Done
-########################################
+# Validate control script
+if [ ! -f "${CONTROL_SCRIPT}" ]; then
+  fail "ERROR: control.sh not found at ${CONTROL_SCRIPT}"
+  exit 1
+fi
+
+# Ensure executable
+chmod +x "${CONTROL_SCRIPT}"
+
+# Create systemd service file
+cat <<EOF > "${SERVICE_FILE}"
+[Unit]
+Description=Performa Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=forking
+ExecStart=${CONTROL_SCRIPT} start
+ExecStop=${CONTROL_SCRIPT} stop
+ExecReload=${CONTROL_SCRIPT} restart
+WorkingDirectory=${PERFORMA_DIR}
+User=root
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+success "Service file created at ${SERVICE_FILE}"
+
+# Reload and enable service
+systemctl daemon-reexec
+systemctl daemon-reload
+systemctl enable "${SERVICE_NAME}.service"
+systemctl start "${SERVICE_NAME}.service"
+
 echo
-echo "==== Installation completed successfully ===="
+success "==================== Service Status ===================="
+systemctl status "${SERVICE_NAME}.service" --no-pager
+
+################################################################################
+# Completion
+################################################################################
+echo
+success "==== Installation completed successfully ===="
 echo "Log file saved at: ${LOG_FILE}"
 
-
 echo "------------------------------------------------"
-echo "Installation Complete! of performa and satellite"
-echo "Master UI: http://$(hostname -I | awk '{print $1}'):5511"
+success "Installation Complete! (Performa + Satellite)"
+success "Master UI: http://$(hostname -I | awk '{print $1}'):5511"
 echo "------------------------------------------------"
-
