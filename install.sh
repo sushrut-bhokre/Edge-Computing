@@ -234,7 +234,37 @@ run_step "Setting executable permission" \
   "chmod +x node_detect.sh"
 run_step "setting it in environment" \
   "./node_detect.sh"
-  
+
+
+section "Final Check for cluster"
+SUDOERS_FILE="/etc/sudoers.d/edge-backend-pcs"
+RULE="sysadmin ALL=(root) NOPASSWD: /usr/sbin/pcs status xml"
+
+
+
+# -----------------------------
+# Create sudoers rule
+# -----------------------------
+echo "Adding sudoers rule for pcs status xml..."
+
+echo "$RULE" > "$SUDOERS_FILE"
+
+# Correct permissions (MANDATORY)
+chmod 440 "$SUDOERS_FILE"
+chown root:root "$SUDOERS_FILE"
+
+# -----------------------------
+# Validate sudoers syntax
+# -----------------------------
+if visudo -cf "$SUDOERS_FILE"; then
+  success "Sudoers rule installed and validated successfully."
+else
+  fail "ERROR: Sudoers validation failed. Rolling back."
+  rm -f "$SUDOERS_FILE"
+  exit 1
+fi
+
+
 section "INSTALLATION COMPLETE"
 success "All components installed successfully"
 
