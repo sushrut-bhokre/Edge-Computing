@@ -1,22 +1,22 @@
 #!/bin/bash
-set -e
 
-#################################################
+
+############################################################
 # Pacemaker Node & Web UI Preparation Script
-# Ubuntu 24.04 LTS
-# Purpose: Prepare node and install modern Web UI
-#################################################
+# OS      : Ubuntu 24.04 LTS
+# Purpose : Prepare node and install modern PCS Web UI
+############################################################
 
-# -----------------------------
-# Configuration
-# -----------------------------
+# ==========================================================
+# Global Configuration
+# ==========================================================
 LOG_DIR="/var/log/pacemaker-node"
 LOG_FILE="${LOG_DIR}/prepare-$(date +%Y%m%d-%H%M%S).log"
 BUILD_DIR="/tmp/pcs-web-ui-build"
 
-# -----------------------------
-# Formatting helpers
-# -----------------------------
+# ==========================================================
+# Output Formatting Helpers
+# ==========================================================
 BOLD="\e[1m"
 GREEN="\e[32m"
 RED="\e[31m"
@@ -37,17 +37,17 @@ fail() {
   exit 1
 }
 
-# -----------------------------
-# Root check
-# -----------------------------
+# ==========================================================
+# Privilege Validation
+# ==========================================================
 if [ "$EUID" -ne 0 ]; then
   echo "ERROR: Run this script as root (sudo)."
   exit 1
 fi
 
-# -----------------------------
-# Logging setup
-# -----------------------------
+# ==========================================================
+# Logging Setup
+# ==========================================================
 mkdir -p "${LOG_DIR}"
 touch "${LOG_FILE}"
 chmod 600 "${LOG_FILE}"
@@ -55,90 +55,117 @@ chmod 600 "${LOG_FILE}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 trap 'fail "Script execution interrupted or failed unexpectedly"' ERR
 
-# -----------------------------
-# Start
-# -----------------------------
+# ==========================================================
+# Initialization
+# ==========================================================
 section "Initialization"
 success "Pacemaker Node + Web UI Preparation Started"
 success "Hostname : $(hostname)"
 
-#############################################
-# 1. System update
-#############################################
+# ==========================================================
+# System Preparation
+# ==========================================================
 section "System Update"
 apt update -y && apt upgrade -y || fail "Failed to update system packages"
 success "System packages updated"
 
-#############################################
-# 2. Time synchronization
-#############################################
 section "Time Synchronization (chrony)"
 apt install -y chrony || fail "Failed to install chrony"
 systemctl enable --now chrony || fail "Failed to start chrony"
 success "Chrony installed and running"
 
-#############################################
-# 3. Pacemaker stack
-#############################################
+# ==========================================================
+# Pacemaker Stack Installation
+# ==========================================================
 section "Pacemaker Stack Installation"
 apt install -y pacemaker corosync pcs fence-agents || fail "Failed to install Pacemaker stack"
 success "Pacemaker, Corosync, and PCS installed"
 
-#############################################
-# 4. pcsd service
-#############################################
 section "pcsd Service Enablement"
 systemctl enable --now pcsd || fail "Failed to enable/start pcsd"
 success "pcsd service enabled and running"
 
-#############################################
-# 5. Disable cluster services
-#############################################
 section "Cluster Services State"
 systemctl disable --now pacemaker corosync || success "Services already stopped"
 success "pacemaker and corosync set to stopped (correct initial state)"
 
-#############################################
-# 6. Build & Install Web UI
-#############################################
+# ==========================================================
+# PCS Web UI Build & Installation
+# ==========================================================
 section "Web UI Build Dependencies"
 apt install -y git autoconf automake make pkg-config || fail "Failed to install build dependencies"
 success "Dependencies installed"
 
 section "Cloning and Building PCS Web UI"
-rm -rf "$BUILD_DIR"
-git clone https://github.com/ClusterLabs/pcs-web-ui.git "$BUILD_DIR" || fail "Failed to clone repository"
-cd "$BUILD_DIR"
+rm -rf "${BUILD_DIR}"
+git clone https://github.com/ClusterLabs/pcs-web-ui.git "${BUILD_DIR}" || fail "Failed to clone repository"
+cd "${BUILD_DIR}"
 
 ./autogen.sh || fail "autogen.sh failed"
-./configure --disable-cockpit --with-pcsd-webui-dir=/usr/share/pcsd/public/ui || fail "Configuration failed"
+./configure \
+  --disable-cockpit \
+  --with-pcsd-webui-dir=/usr/share/pcsd/public/ui || fail "Configuration failed"
+
 make || fail "Build (make) failed"
 make install || fail "Installation (make install) failed"
-success "Web UI built and installed to /usr/share/pcsd/public/ui"
 
-#############################################
-# 7. hacluster authentication
-#############################################
+success "PCS Web UI built and installed"
+
+# ==========================================================
+# Custom UI & Plugin Deployment
+# ==========================================================
+section "Deploying Custom PCS Web UI and Plugins"
+
+UI_DIR="/usr/share/pcsd/public"
+PLUGIN_DIR="/usr/share/pcsd/public/plugins"
+BACKUP_DIR="/usr/share/pcsd/public/backup-$(date +%Y%m%d-%H%M%S)"
+
+section "Replacing UI and Plugins"
+rm -rf "${UI_DIR}"
+mkdir "${UI_DIR}"
+cd "${UI_DIR}"
+
+git clone https://github.com/PalashTinkhede/public.git . || fail "Failed to clone custom UI"
+
+section "Permissions Fix"
+chown -R root:root /usr/share/pcsd/public
+chmod -R 755 /usr/share/pcsd/public
+
+success "Custom UI and plugins deployed successfully"
+
+section "Restarting pcsd"
+systemctl restart pcsd || fail "Failed to restart pcsd"
+success "pcsd restarted with custom UI"
+
+# ==========================================================
+# Cluster Authentication
+# ==========================================================
 section "hacluster Authentication"
+
 echo -e "${BOLD}Action Required:${RESET} Set the password for 'hacluster' (UI login)"
 read -rs -p "Enter password: " HA_PASS
 echo
-echo "hacluster:$HA_PASS" | chpasswd || fail "Failed to set password for hacluster"
+
+echo "hacluster:${HA_PASS}" | chpasswd || fail "Failed to set password for hacluster"
 success "hacluster password configured"
 
-systemctl restart pcsd || fail "Failed to restart pcsd after UI installation"
+systemctl restart pcsd || fail "Failed to restart pcsd after authentication update"
 success "pcsd restarted successfully"
 
-#############################################
-# Cleanup & Final status
-#############################################
+# ==========================================================
+# Cleanup
+# ==========================================================
 section "Cleanup"
-rm -rf "$BUILD_DIR"
+rm -rf "${BUILD_DIR}"
 success "Temporary build files removed"
 
+# ==========================================================
+# Final Status & Access Information
+# ==========================================================
 IP_ADDR=$(hostname -I | awk '{print $1}')
 
 echo -e "\n${BOLD}${GREEN}==== PREPARATION COMPLETE ====${RESET}"
+echo
 echo "Node Status:"
 echo "  pcsd (API/UI) : RUNNING"
 echo "  pacemaker     : STOPPED"
